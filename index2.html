@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오디오 시각화</title>
+  <style>
+    body {
+      filter: blur(40px);
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      height: 100vh;
+      background-color: #000000;
+      margin: 0;
+      overflow: hidden;
+    }
+    #bars {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      height: 100%;
+      width: 100%;
+    }
+    .bar {
+      flex: 1;
+      height: 0;
+      background-color: #26c2e9;
+      transform-origin: bottom;
+      transition: height 0.06s ease;
+    }
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        justify-content: flex-start;
+      }
+      #bars {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-end;
+        height: 100%;
+        width: 100%;
+        transform: rotate(0deg);
+      }
+      .bar {
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="bars"></div>
+  <script>
+    const barsContainer = document.getElementById('bars');
+
+    function createBars(numBars) {
+      barsContainer.innerHTML = '';
+      for (let i = 0; i < numBars; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        barsContainer.appendChild(bar);
+      }
+    }
+
+    function adjustBars() {
+      const width = window.innerWidth;
+      const numBars = Math.max(10, Math.floor(width /50)); // 막대 개수 계산
+      createBars(numBars);
+    }
+
+    async function setupAudio() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.6;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+          requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(dataArray);
+
+          const bars = document.querySelectorAll('.bar');
+          bars.forEach((bar, index) => {
+            const value = dataArray[index] / 155;
+            const height = Math.max(value * 500, 10);
+            bar.style.height = `${height}px`;
+          });
+        }
+
+        draw();
+      } catch (err) {
+        console.error('오디오 접근 에러:', err);
+      }
+    }
+
+    setupAudio();
+    adjustBars();
+    window.addEventListener('resize', adjustBars);
+
+    document.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+    });
+  </script>
+</body>
+</html>
